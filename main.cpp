@@ -26,6 +26,7 @@ MyWidget::MyWidget(QWidget *parent): QWidget(parent)
             hiScore, SLOT(setValue(int)));
 
     QVBoxLayout *boxLayout = new QVBoxLayout;
+
     // Two elements together at that place
     boxLayout -> addWidget(score);
     boxLayout -> addWidget(hiScore);
@@ -38,7 +39,6 @@ MyWidget::MyWidget(QWidget *parent): QWidget(parent)
 
     // To say that it should keep focus (of the keyboard for example)
     board -> setFocus();
-
     hiScore -> setValue(board -> getHiScore());
 }
 
