@@ -1,11 +1,11 @@
-#include <QApplication>
-#include <QFont>
-#include <QGridLayout>
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QVBoxLayout>
+#include <QtGui/QApplication>
+#include <QtGui/QFont>
+#include <QtGui/QGridLayout>
+#include <QtGui/QHBoxLayout>
+#include <QtGui/QPushButton>
+#include <QtGui/QVBoxLayout>
 #include "Plateau.h"
- #include "lcdrange.h"
+#include "lcdrange.h"
 
 class MyWidget : public QWidget
 {
@@ -46,7 +46,7 @@ MyWidget::MyWidget(QWidget *parent): QWidget(parent)
 
 
 
-     QVBoxLayout *botLayout = new QVBoxLayout; //deux ensemble √† cet endroit
+     QVBoxLayout *botLayout = new QVBoxLayout; //deux ensemble ®§ cet endroit
      botLayout->addWidget(score);
      botLayout->addWidget(hiScore);
 
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 
 //regrouper UpdateMove et update
 //clignotement de sprite quand agrandissement du snake
-//commencer dans chacune des directions possibles au d√©but.
+//commencer dans chacune des directions possibles au d®¶but.
 //quelque chose qd on gagne, note sur 20.
 
 
