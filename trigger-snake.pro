@@ -11,15 +11,14 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
-    lcdrange.cpp \
     Alea.cpp \
-    Plateau.cpp
+    LCDRange.cpp \
+    Board.cpp
 
-HEADERS  += mainwindow.h \
-    lcdrange.h \
+HEADERS  += \
     Alea.h \
     MersenneTwister.h \
-    Plateau.h
+    LCDRange.h \
+    Board.h
 
 FORMS    += mainwindow.ui

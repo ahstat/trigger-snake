@@ -1,30 +1,25 @@
 #ifndef LCDRANGE_H
- #define LCDRANGE_H
+#define LCDRANGE_H
 
- #include <QWidget>
+#include <QWidget>
 
- class QLCDNumber;
- class QSlider;
+class QLCDNumber;
+class QSlider;
 
- class LCDRange : public QWidget
- {
-     Q_OBJECT
+class LCDRange : public QWidget
+{
+    Q_OBJECT
 
- public:
-     LCDRange(QWidget *parent = 0);
+    public:
+        LCDRange(QWidget *parent = 0);
 
-     //int value() const;
+    public slots:
+        void setValue(int value);
 
- public slots:
-     void setValue(int value);
-     //void setRange(int minValue, int maxValue);
+    signals:
 
- signals:
-     //void valueChanged(int newValue);
+    private:
+        QLCDNumber *lcd;
+};
 
- private:
-     QLCDNumber *lcd;
- };
-
- #endif
-
+#endif
