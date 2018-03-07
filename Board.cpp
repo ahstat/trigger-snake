@@ -5,12 +5,13 @@
 */
 Board::Board(QWidget *parent) : QWidget(parent)
 {
-    // Real-time moving timer
-    // Timer begin when begin() is called
+    // Real-time moving timer. Timer begin when begin() is called
     m_autoMoveTimer = new QTimer(this);
 
     // We'll move on every time the timer times out
     connect(m_autoMoveTimer, SIGNAL(timeout()), this, SLOT(updateMove()));
+
+    // Initialize variables to default
     newGame();
 }
 
@@ -24,24 +25,193 @@ int Board::getHiScore()
 */
 // There is only one slot, which continuously waits for user actions and
 // board updates. It is called by newgame().
-//
 void Board::updateMove()
 {
-    update(m_snakeRegion());
-    update(m_appleRegion());
+    // Update the whole board
+    update(m_rectPlateau());
     // Note: Doing too many updates will slow down the game
 
-    if(m_changementPlateau==1)
+    if(m_endOfGame == FALSE)
     {
-        update(m_rectPlateau());
-        m_changementPlateau=0;
-    }
-
-    if(m_perdre == FALSE)
-    {
-        avancer();
+        // Motion of the snake
+        motion();
     }
 }
+
+/*
+  Private methods
+*/
+void Board::newGame()
+{
+    ////
+    // General characteristics
+    ////
+    m_timerSpeed = 3; // timer in milliseconds -- let to 3 for true speed
+    m_nbSquaresX = 16;
+    m_nbSquaresY = 8;
+    m_cellSize = 48; // size in pixels -- better when m_cellSize == 0 mod 4
+    m_score = 0;
+    scoreChanged(m_score); // give signal to LCDRange
+    m_hiScore = Helpers::lireHiScore(); // retrive hi-score from txt
+    hiScoreChanged(m_hiScore); // give signal to LCDRange
+    m_currentPlayId = Helpers::lirePartieEnCours();
+    m_endOfGame = FALSE;
+    m_win = FALSE;
+    m_steps = 0;
+
+    ////
+    // Information on the snake
+    ////
+    m_direction = 0;
+    m_previousDirection = -1;
+    m_repositionOnGrid = FALSE;
+    m_currentXPosition = m_cellSize * Alea::rand_integer(m_nbSquaresX);
+    m_currentYPosition = m_cellSize * Alea::rand_integer(m_nbSquaresY);
+    m_length = 1;
+
+    ////
+    // Relations between apple and snake
+    ////
+    m_pointsCurrentApple = 100;
+    m_nbStepsBeforeDecreasingPoints = mesureDistancePommeTete();
+
+
+
+    ////
+    // Saving all states of the game
+    ////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //informations sauvegardées du snake (pour les datas)
+    m_positionsSauvegardeesX.resize(0);
+    m_positionsSauvegardeesY.resize(0);
+    m_positionsSauvegardeesX.push_back(m_currentXPosition / m_cellSize);
+    m_positionsSauvegardeesY.push_back(m_currentYPosition/m_cellSize); //cf initialement, position en (0,0) sur la grille
+    m_positionsSauvegardeesXmod.resize(0);
+    m_positionsSauvegardeesYmod.resize(0);
+    m_positionsSauvegardeesXmod.push_back(m_currentXPosition/m_cellSize);
+    m_positionsSauvegardeesYmod.push_back(m_currentYPosition/m_cellSize); //cf initialement, position en (0,0) sur la grille
+    m_directions.resize(0);
+    m_grilleSauvegardee.resize(m_nbSquaresX*m_nbSquaresY);
+    m_grillePomme.resize(m_nbSquaresX*m_nbSquaresY);
+    m_aretesEst.resize(m_nbSquaresX*m_nbSquaresY);
+    m_aretesNord.resize(m_nbSquaresX*m_nbSquaresY);
+    m_aretesOuest.resize(m_nbSquaresX*m_nbSquaresY);
+    m_aretesSud.resize(m_nbSquaresX*m_nbSquaresY);
+
+    for(unsigned int i(0); i < m_grilleSauvegardee.size(); i++)
+    {
+        m_grilleSauvegardee[i] = 0;
+        m_grillePomme[i] = 0;
+        m_aretesEst[i] = 0;
+        m_aretesNord[i] = 0;
+        m_aretesOuest[i] = 0;
+        m_aretesSud[i] = 0;
+    }
+
+
+    setPalette(QPalette(QColor(250, 250, 200)));
+    setAutoFillBackground(true);
+    setFixedSize(m_cellSize * m_nbSquaresX, m_cellSize * m_nbSquaresY);
+
+
+
+
+    sauvegardeGrille();
+    //AFFICHAGE
+    //std::cout << "init";
+    //std::cout << "	(" << m_positionsSauvegardeesX.back() << "," << m_positionsSauvegardeesY.back() << ")";
+    //std::cout << "	(" << m_positionsSauvegardeesXmod.back() << "," << m_positionsSauvegardeesYmod.back() << ")" << std::endl;
+    m_positionsSauvegardeesPommeX.resize(0);
+    m_positionsSauvegardeesPommeY.resize(0);
+
+
+    m_nbPasAvantAgrandissementSnake.resize(0);
+    m_nePasBougerLaQueue = 0;
+
+
+    nouvellePositionPomme();
+
+    m_changementPlateau = 0;
+    m_quelPlateau = "";
+    m_valeurMaxGrilleSauvegardee = 0;
+    m_valeurMaxAreteSauvegardee = 0;
+
+
+
+    m_valeurMaxGrillePomme = 0;
+
+
+
+
+
+
+
+
+    m_stepsSave.resize(0);
+    m_scoreSave.resize(0);
+    m_nbPommesMangeesSave.resize(0);
+    m_lengthSnakeSave.resize(0);
+    m_stepsSave.push_back(0);
+    m_scoreSave.push_back(0);
+    m_nbPommesMangeesSave.push_back(0);
+    m_lengthSnakeSave.push_back(m_length+1);
+
+    m_positionsSauvegardeesPommeXcomplet.resize(0);
+    m_positionsSauvegardeesPommeYcomplet.resize(0);
+    m_positionsSauvegardeesPommeXcomplet.push_back(m_positionsSauvegardeesPommeX.back());
+    m_positionsSauvegardeesPommeYcomplet.push_back(m_positionsSauvegardeesPommeY.back());
+
+
+    //ce qui change par rapport au constructeur
+    m_changementPlateau = 1;
+    updateMove();
+
+    m_autoMoveTimer -> stop();
+}
+
+
+
+
+
+
+
+
+
+
+QRect Board::m_rectPlateau()
+{
+    return QRect(-1, -1, m_cellSize*m_nbSquaresX + 1, m_cellSize*m_nbSquaresY + 1);
+}
+
+
+
+
+
+
+
 
 
 
@@ -89,29 +259,6 @@ QPolygon Board::m_triangleOuest(int x, int y)
     return triangleN;
 }
 
-QRegion Board::m_snakeRegion()
-{
-    QRegion region = m_rectHead();
-
-    //update corps juste avant la queue (cf il se peut que un pixel soit mal updaté)
-    if(m_positionsSauvegardeesXmod.size() >= m_longueur+1)
-    {
-        region = region.united(m_rectCorps(m_positionsSauvegardeesXmod.size()-(m_longueur+1),0));
-    }
-
-    //update queue mouvante
-    if(m_positionsSauvegardeesXmod.size() > m_longueur+1)
-    {
-        region = region.united(m_rectQueue(0));
-    }
-
-    //region = region.united(m_rect(m_positionEnCoursX + m_cellSize, m_positionEnCoursY + m_cellSize));
-    //region = region.united(m_rect(m_positionEnCoursX + m_cellSize, m_positionEnCoursY - m_cellSize));
-    //region = region.united(m_rect(m_positionEnCoursX - m_cellSize, m_positionEnCoursY + m_cellSize));
-    //region = region.united(m_rect(m_positionEnCoursX - m_cellSize, m_positionEnCoursY - m_cellSize));
-    return region;
-}
-
 QRegion Board::m_rectHead()
 {
     QRegion region = QRegion();
@@ -122,8 +269,8 @@ QRegion Board::m_rectHead()
 
 QRect Board::m_rectHeadUsual(bool affiche)
 {
-    QRect result(m_rect(m_positionEnCoursX, m_positionEnCoursY));
-    if(m_perdre == TRUE)
+    QRect result(m_rect(m_currentXPosition, m_currentYPosition));
+    if(m_endOfGame == TRUE)
     {
         // Position of snake's head is took from saved positions
         int indexBeforeBump = m_positionsSauvegardeesXmod.size() - 2;
@@ -139,15 +286,15 @@ QRect Board::m_rectHeadUsual(bool affiche)
 
 QRect Board::m_rectHeadCorner(bool affiche)
 {
-    if(m_positionEnCoursY > m_cellSize*m_nbSquaresY-m_cellSize)
+    if(m_currentYPosition > m_cellSize*m_nbSquaresY - m_cellSize)
     {
-        QRect result(m_rect(m_positionEnCoursX, m_positionEnCoursY-m_cellSize*m_nbSquaresY));
+        QRect result(m_rect(m_currentXPosition, m_currentYPosition - m_cellSize*m_nbSquaresY));
         afficher(affiche, "m_rectHeadCorner Y", result);
         return result;
     }
-    else if(m_positionEnCoursX > m_cellSize*m_nbSquaresX-m_cellSize)
+    else if(m_currentXPosition > m_cellSize*m_nbSquaresX - m_cellSize)
     {
-        QRect result(m_rect(m_positionEnCoursX-m_cellSize*m_nbSquaresX, m_positionEnCoursY));
+        QRect result(m_rect(m_currentXPosition - m_cellSize*m_nbSquaresX, m_currentYPosition));
         afficher(affiche, "m_rectHeadCorner X", result);
         return result;
     }
@@ -169,10 +316,12 @@ QRect Board::m_rectCorps(unsigned int i, bool affiche)
 
 QRect Board::m_rectQueue(bool affiche)
 {
-    unsigned int i(m_positionsSauvegardeesX.size()-m_longueur-2);
+    unsigned int i(m_positionsSauvegardeesX.size() - m_length - 2);
     QRect result = QRect();
 
-    if(m_perdre == TRUE)
+    std::cout << m_currentXPosition << std::endl;
+
+    if(m_endOfGame == TRUE)
     {
         int cellX(m_positionsSauvegardeesXmod[i]);
         int cellY(m_positionsSauvegardeesYmod[i]);
@@ -190,24 +339,25 @@ QRect Board::m_rectQueue(bool affiche)
         int cellY(m_positionsSauvegardeesYmod[i]);
 
         int ajout(0);
-        if(m_directions.back()=="est")
+        if(m_directions.back() == "est")
         {
-            ajout=m_positionEnCoursX % m_cellSize;
+            //ajout = m_currentXPosition % m_cellSize;
+            ajout = (m_currentXPosition + m_cellSize - 1) % m_cellSize;// + 1;
         }
-        else if(m_directions.back()=="ouest")
+        else if(m_directions.back() == "ouest")
         {
-            ajout=m_cellSize - m_positionEnCoursX % m_cellSize;
+            ajout = m_cellSize - m_currentXPosition % m_cellSize;
         }
-        else if(m_directions.back()=="nord")
+        else if(m_directions.back() == "nord")
         {
-            ajout=m_cellSize - m_positionEnCoursY % m_cellSize;
+            ajout = m_cellSize - m_currentYPosition % m_cellSize;
         }
-        else if(m_directions.back()=="sud")
+        else if(m_directions.back() == "sud")
         {
-            ajout=m_positionEnCoursY % m_cellSize;
+            ajout = (m_currentYPosition+m_cellSize - 1) % m_cellSize;// + 1;
         }
 
-        std::string direction(m_directions[m_positionsSauvegardeesX.size()-m_longueur-2]);
+        std::string direction(m_directions[m_positionsSauvegardeesX.size() - m_length - 2]);
         int signe(0); //1 or -1
         if(direction == "ouest")
         {
@@ -229,22 +379,20 @@ QRect Board::m_rectQueue(bool affiche)
             signe = 1;
             result = m_rect(cellX*m_cellSize, cellY*m_cellSize+signe*ajout);
         }
+
+        /*
+        //result = m_rect(cellX*m_cellSize+signe*ajout, cellY*m_cellSize);
+        std::cout << ajout << std::endl;
+        std::cout << m_cellSize << std::endl;
+        ajout = (m_currentXPosition - 1) % m_cellSize + 1;
+        result = m_rect(cellX*m_cellSize+1*ajout, cellY*m_cellSize);
+        */
+
     }
+
 
     afficher(affiche, "m_rectQueue", result);
     return result;
-}
-
-QRegion Board::m_appleRegion()
-{
-    QRegion region = m_rectPomme(0);
-    if(m_positionsSauvegardeesPommeX.size() > 1)
-    {
-        int idxToUpdate = m_positionsSauvegardeesPommeX.size()-2;
-        region = region.united(m_rect(m_cellSize*m_positionsSauvegardeesPommeX[idxToUpdate],
-                                      m_cellSize*m_positionsSauvegardeesPommeY[idxToUpdate]));
-    }
-    return region;
 }
 
 QRect Board::m_rectPomme(bool affiche)
@@ -255,10 +403,7 @@ QRect Board::m_rectPomme(bool affiche)
     return result;
 }
 
-QRect Board::m_rectPlateau()
-{
-    return QRect(-1, -1, m_cellSize*m_nbSquaresX + 1, m_cellSize*m_nbSquaresY + 1);
-}
+
 
 void Board::afficher(bool affiche, std::string objName, QRect result) const
 {
@@ -279,7 +424,7 @@ void Board::begin()
     {
         return;
     }
-    m_autoMoveTimer -> start(m_vitesseTimer); // timer in ms
+    m_autoMoveTimer -> start(m_timerSpeed); // timer in ms
 }
 
 
@@ -288,227 +433,123 @@ void Board::begin()
 
 
 
-void Board::newGame()
-{
-    m_vitesseTimer=3; //timer en millisecondes -- mettre 3 pour la vraie vitesse
 
-    //informations graphiques
-    m_nbSquaresX=16;
-    m_nbSquaresY=8;
-    m_cellSize=48; //mieux si congru modulo 4
-    setPalette(QPalette(QColor(250, 250, 200)));
-    setAutoFillBackground(true);
-    setFixedSize(m_cellSize*m_nbSquaresX, m_cellSize*m_nbSquaresY);
-
-    //information sur le snake
-    m_direction=0;
-    m_ancienneDirection=-1;
-
-    m_positionEnCoursX=m_cellSize*Alea::rand_integer(m_nbSquaresX);
-    m_positionEnCoursY=m_cellSize*Alea::rand_integer(m_nbSquaresY); //position init aléatoire
-
-    m_longueur = 1;
-    m_perdre=FALSE;
-    m_gagner=FALSE;
-    m_repositionnerSurLaGrille=FALSE;
-
-    //informations sauvegardées du snake (pour les datas)
-    m_positionsSauvegardeesX.resize(0);
-    m_positionsSauvegardeesY.resize(0);
-    m_positionsSauvegardeesX.push_back(m_positionEnCoursX/m_cellSize);
-    m_positionsSauvegardeesY.push_back(m_positionEnCoursY/m_cellSize); //cf initialement, position en (0,0) sur la grille
-    m_positionsSauvegardeesXmod.resize(0);
-    m_positionsSauvegardeesYmod.resize(0);
-    m_positionsSauvegardeesXmod.push_back(m_positionEnCoursX/m_cellSize);
-    m_positionsSauvegardeesYmod.push_back(m_positionEnCoursY/m_cellSize); //cf initialement, position en (0,0) sur la grille
-    m_directions.resize(0);
-    m_grilleSauvegardee.resize(m_nbSquaresX*m_nbSquaresY);
-    m_grillePomme.resize(m_nbSquaresX*m_nbSquaresY);
-    m_aretesEst.resize(m_nbSquaresX*m_nbSquaresY);
-    m_aretesNord.resize(m_nbSquaresX*m_nbSquaresY);
-    m_aretesOuest.resize(m_nbSquaresX*m_nbSquaresY);
-    m_aretesSud.resize(m_nbSquaresX*m_nbSquaresY);
-
-    for(unsigned int i(0); i<m_grilleSauvegardee.size(); i++)
-    {
-        m_grilleSauvegardee[i]=0;
-        m_grillePomme[i]=0;
-        m_aretesEst[i]=0;
-        m_aretesNord[i]=0;
-        m_aretesOuest[i]=0;
-        m_aretesSud[i]=0;
-    }
-
-    sauvegardeGrille();
-    //AFFICHAGE
-    //std::cout << "init";
-    //std::cout << "	(" << m_positionsSauvegardeesX.back() << "," << m_positionsSauvegardeesY.back() << ")";
-    //std::cout << "	(" << m_positionsSauvegardeesXmod.back() << "," << m_positionsSauvegardeesYmod.back() << ")" << std::endl;
-
-    m_nbPasAvantAgrandissementSnake.resize(0);
-    m_nePasBougerLaQueue = 0;
-
-    m_positionsSauvegardeesPommeX.resize(0);
-    m_positionsSauvegardeesPommeY.resize(0);
-    nouvellePositionPomme();
-
-    m_quelPlateau=""; //m_voirDensite=0;
-    m_valeurMaxGrilleSauvegardee = 0;
-    m_valeurMaxAreteSauvegardee = 0;
-
-    m_changementPlateau=0;
-
-    m_valeurMaxGrillePomme=0;
-
-    m_score=0;
-    scoreChanged(m_score);
-    m_pointsEnCours=100;
-
-    m_nbPasAvantDecroissancePoints=mesureDistancePommeTete();
-
-    m_temps=0;
-
-    m_tempsSave.resize(0);
-    m_scoreSave.resize(0);
-    m_nbPommesMangeesSave.resize(0);
-    m_longueurSnakeSave.resize(0);
-    m_tempsSave.push_back(0);
-    m_scoreSave.push_back(0);
-    m_nbPommesMangeesSave.push_back(0);
-    m_longueurSnakeSave.push_back(m_longueur+1);
-
-    m_positionsSauvegardeesPommeXcomplet.resize(0);
-    m_positionsSauvegardeesPommeYcomplet.resize(0);
-    m_positionsSauvegardeesPommeXcomplet.push_back(m_positionsSauvegardeesPommeX.back());
-    m_positionsSauvegardeesPommeYcomplet.push_back(m_positionsSauvegardeesPommeY.back());
-
-    m_partieEnCours = Helpers::lirePartieEnCours();
-
-    m_hiScore=Helpers::lireHiScore();
-    hiScoreChanged(m_hiScore);
-
-    //ce qui change par rapport au constructeur
-    m_changementPlateau=1;
-    updateMove();
-
-    m_autoMoveTimer->stop();
-}
 
 void Board::keyPressEvent(QKeyEvent *event)
 {
-    if(m_perdre==FALSE)
+    if(m_endOfGame == FALSE)
     {
-        switch (event->key())
+        switch (event -> key())
         {
             case Qt::Key_Up:
-                if(m_ancienneDirection != 1 && m_ancienneDirection != 3)
+                if(m_previousDirection != 1 && m_previousDirection != 3)
                 {
-                    m_direction=1;
-                    m_repositionnerSurLaGrille=TRUE;
+                    m_direction = 1;
+                    m_repositionOnGrid = TRUE;
                 }
                 break;
 
             case Qt::Key_Down:
-                if(m_ancienneDirection != 3 && m_ancienneDirection != 1)
+                if(m_previousDirection != 3 && m_previousDirection != 1)
                 {
-                    m_direction=3;
-                    m_repositionnerSurLaGrille=TRUE;
+                    m_direction = 3;
+                    m_repositionOnGrid = TRUE;
                 }
                 break;
 
             case Qt::Key_Left:
-                if(m_ancienneDirection != 2 && m_ancienneDirection != 0)
+                if(m_previousDirection != 2 && m_previousDirection != 0)
                 {
-                    m_direction=2;
-                    m_repositionnerSurLaGrille=TRUE;
+                    m_direction = 2;
+                    m_repositionOnGrid = TRUE;
                 }
                 break;
 
             case Qt::Key_Right:
-                if(m_ancienneDirection != 0 && m_ancienneDirection != 2)
+                if(m_previousDirection != 0 && m_previousDirection != 2)
                 {
-                    m_direction=0;
-                    m_repositionnerSurLaGrille=TRUE;
+                    m_direction = 0;
+                    m_repositionOnGrid = TRUE;
                 }
                 break;
 
             case Qt::Key_2:
                 augmenterLongueur();
-                m_score=0;
+                m_score = 0;
                 break;
 
             case Qt::Key_1:
                 nouvellePositionPomme();
-                m_score=0;
+                m_score = 0;
                 break;
 
             case Qt::Key_3:
-                m_score=0;
-                m_temps=1000;
+                m_score = 0;
+                m_steps = 1000;
                 m_positionsSauvegardeesPommeX.resize(101);
                 gagner();
                 break;
         }
     }
 
-    if (!m_autoMoveTimer->isActive() && m_perdre==FALSE)
+    if (!m_autoMoveTimer -> isActive() && m_endOfGame == FALSE)
     {
         begin();
     }
 
-    switch (event->key())
+    switch (event -> key())
     {
         case Qt::Key_D:
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
             if(m_quelPlateau != "densite")
             {
-                m_quelPlateau="densite";
+                m_quelPlateau = "densite";
             }
             else
             {
-                m_quelPlateau="";
+                m_quelPlateau = "";
             }
             //AFFICHAGE
             //std::cout << "D" << std::endl;
             break;
 
         case Qt::Key_Q:
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
             if(m_quelPlateau != "arete")
             {
-                m_quelPlateau="arete";
+                m_quelPlateau = "arete";
             }
             else
             {
-                m_quelPlateau="";
+                m_quelPlateau = "";
             }
             //AFFICHAGE
             //std::cout << "F" << std::endl;
             break;
 
         case Qt::Key_S:
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
             if(m_quelPlateau != "nonoriente")
             {
-                m_quelPlateau="nonoriente";
+                m_quelPlateau = "nonoriente";
             }
             else
             {
-                m_quelPlateau="";
+                m_quelPlateau = "";
             }
             //AFFICHAGE
             //std::cout << "G" << std::endl;
             break;
 
         case Qt::Key_P:
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
             if(m_quelPlateau != "pomme")
             {
-                m_quelPlateau="pomme";
+                m_quelPlateau = "pomme";
             }
             else
             {
-                m_quelPlateau="";
+                m_quelPlateau = "";
             }
             //AFFICHAGE
             //std::cout << "P" << std::endl;
@@ -528,34 +569,36 @@ void Board::keyPressEvent(QKeyEvent *event)
 void Board::paintEvent(QPaintEvent * /* event */)
 {
     QPainter painter(this);
-    if(m_changementPlateau==1)
+
+    if(m_changementPlateau == 1)
     {
         paintTout(painter);
     }
 
-    if (m_autoMoveTimer->isActive())
+    if (m_autoMoveTimer -> isActive())
     {
-        if(m_quelPlateau=="")
+        if(m_quelPlateau == "")
         {
             paintShot(painter);
         }
-        else if(m_quelPlateau=="densite")
+        else if(m_quelPlateau == "densite")
         {
             paintDensite(painter);
         }
-        else if(m_quelPlateau=="arete")
+        else if(m_quelPlateau == "arete")
         {
             paintArete(painter);
         }
-        else if(m_quelPlateau=="nonoriente")
+        else if(m_quelPlateau == "nonoriente")
         {
             paintNonOriente(painter);
         }
-        else if(m_quelPlateau=="pomme")
+        else if(m_quelPlateau == "pomme")
         {
             paintPomme(painter);
         }
     }
+
 }
 
 
@@ -571,10 +614,10 @@ void Board::agrandissementSnake()
     if(m_nbPasAvantAgrandissementSnake.size() != 0)
     {
         //std::cout << "... ";
-        for(unsigned int i(0); i<m_nbPasAvantAgrandissementSnake.size(); i++)
+        for(unsigned int i(0); i < m_nbPasAvantAgrandissementSnake.size(); i++)
         {
             //std::cout << m_nbPasAvantAgrandissementSnake[i] << " ";
-            if(m_nbPasAvantAgrandissementSnake[i]!=0)
+            if(m_nbPasAvantAgrandissementSnake[i] != 0)
             {
                 m_nbPasAvantAgrandissementSnake[i]--;
             }
@@ -585,39 +628,39 @@ void Board::agrandissementSnake()
         }
         //std::cout << std::endl;
 
-        if(m_nbPasAvantAgrandissementSnake[0]==0) //cf c'est forcément lui qui sonne le premier
+        if(m_nbPasAvantAgrandissementSnake[0] == 0) //cf c'est forcément lui qui sonne le premier
         {
             m_nbPasAvantAgrandissementSnake.pop_front();
-            m_longueur+=1;
-            m_nePasBougerLaQueue+=m_cellSize;
+            m_length += 1;
+            m_nePasBougerLaQueue += m_cellSize;
         }
     }
 }
 
 void Board::decroitPointEnCours()
 {
-    //std::cout << m_nbPasAvantDecroissancePoints << std::endl;
-    if(m_pointsEnCours!=1 && m_nbPasAvantDecroissancePoints==0)
+    //std::cout << m_nbStepsBeforeDecreasingPoints << std::endl;
+    if(m_pointsCurrentApple != 1 && m_nbStepsBeforeDecreasingPoints == 0)
     {
-        m_pointsEnCours=0.95*m_pointsEnCours;
+        m_pointsCurrentApple = 0.95*m_pointsCurrentApple;
     }
-    //std::cout << m_pointsEnCours << " sont les points."<< std::endl;
+    //std::cout << m_pointsCurrentApple << " sont les points."<< std::endl;
 }
 
-void Board::avancer()
+void Board::motion()
 {
     if(m_nePasBougerLaQueue != 0)
     {
         m_nePasBougerLaQueue--;
     }
 
-    if(m_positionEnCoursX % m_cellSize == 0 && m_positionEnCoursY % m_cellSize == 0) //on est sur la grille exactement
+    if(m_currentXPosition % m_cellSize == 0 && m_currentYPosition % m_cellSize == 0) //on est sur la grille exactement
     {
-        m_temps++;
-        //std::cout << m_temps << " c'est le temps " << std::endl;
-        if(m_nbPasAvantDecroissancePoints!=0)
+        m_steps++;
+        //std::cout << m_steps << " c'est le temps " << std::endl;
+        if(m_nbStepsBeforeDecreasingPoints != 0)
         {
-            m_nbPasAvantDecroissancePoints--;
+            m_nbStepsBeforeDecreasingPoints--;
         }
         agrandissementSnake();
         sauvegardePositions(); //ajout data
@@ -639,49 +682,49 @@ void Board::avancer()
         }
 
         sauvegardeTempsPointsNbPommesMangeesLongueurSnake();
-        if(m_score==3000)
+        if(m_score == 3000)
         {
             gagner();
         }
     }
 
-    if(m_positionEnCoursX % m_cellSize == 1 || m_positionEnCoursY % m_cellSize == 1 || m_positionEnCoursX % m_cellSize == m_cellSize-1 || m_positionEnCoursY % m_cellSize == m_cellSize-1) //on vient de quitter la grille
+    if(m_currentXPosition % m_cellSize == 1 || m_currentYPosition % m_cellSize == 1 || m_currentXPosition % m_cellSize == m_cellSize - 1 || m_currentYPosition % m_cellSize == m_cellSize - 1) //on vient de quitter la grille
     {
         testCollision();
     }
 
     //lié à ancienneDirection (pour éviter des mouvements du snake)
-    if( m_repositionnerSurLaGrille==FALSE || ( m_positionEnCoursX % m_cellSize == 0 && m_positionEnCoursY % m_cellSize == 0) )
+    if( m_repositionOnGrid == FALSE || ( m_currentXPosition % m_cellSize == 0 && m_currentYPosition % m_cellSize == 0) )
     {
-        m_ancienneDirection=m_direction;
-        m_repositionnerSurLaGrille=FALSE;
+        m_previousDirection = m_direction;
+        m_repositionOnGrid = FALSE;
     }
 
     //on avance d'un pas (modulo le plateau)
-    avancerUnPas();
+    motionOneStep();
 }
 
 void Board::testCollision()
 {
     //test la collision avec les valeurs précédentes
-    for(unsigned int i(0); i<std::min(m_longueur,m_positionsSauvegardeesXmod.size()-1); i++)
+    for(unsigned int i(0); i < std::min(m_length,m_positionsSauvegardeesXmod.size() - 1); i++)
     {
-        unsigned int positioniPasAvant(m_positionsSauvegardeesXmod.size()-2-i);
-        if(m_positionsSauvegardeesXmod.back()==m_positionsSauvegardeesXmod[positioniPasAvant] && m_positionsSauvegardeesYmod.back()==m_positionsSauvegardeesYmod[positioniPasAvant])
+        unsigned int positioniPasAvant(m_positionsSauvegardeesXmod.size() - 2 - i);
+        if(m_positionsSauvegardeesXmod.back() == m_positionsSauvegardeesXmod[positioniPasAvant] && m_positionsSauvegardeesYmod.back() == m_positionsSauvegardeesYmod[positioniPasAvant])
         {
-            perdre();
+            endOfGame();
         }
     }
 
-    //dans les cas où m_longueur est impaire (donc le snake totale est de taille 4, 6, 8 etc.), test de collision réelle (qui peut survenir ou ne pas survenir suivant les configurations)
-    if(m_positionsSauvegardeesXmod.size() >= m_longueur+2)
+    //dans les cas où m_length est impaire (donc le snake totale est de taille 4, 6, 8 etc.), test de collision réelle (qui peut survenir ou ne pas survenir suivant les configurations)
+    if(m_positionsSauvegardeesXmod.size() >= m_length+2)
     {
-        unsigned int positionQueue(m_positionsSauvegardeesXmod.size()-m_longueur-2);
-        if(m_positionsSauvegardeesXmod.back()==m_positionsSauvegardeesXmod[positionQueue] && m_positionsSauvegardeesYmod.back()==m_positionsSauvegardeesYmod[positionQueue]) //s'il y a une possibilité de collision (cas ambigü)
+        unsigned int positionQueue(m_positionsSauvegardeesXmod.size() - m_length - 2);
+        if(m_positionsSauvegardeesXmod.back() == m_positionsSauvegardeesXmod[positionQueue] && m_positionsSauvegardeesYmod.back() == m_positionsSauvegardeesYmod[positionQueue]) //s'il y a une possibilité de collision (cas ambigü)
         {
             if(m_rectHead().intersects(m_rectQueue(0)) == 1) //on fait le test avec les rectangles
             {
-                perdre();
+                endOfGame();
             }
         }
     }
@@ -689,7 +732,7 @@ void Board::testCollision()
 
 bool Board::collisionAvecPomme()
 {
-    if(m_positionsSauvegardeesPommeX.back()==m_positionsSauvegardeesXmod.back() && m_positionsSauvegardeesPommeY.back()==m_positionsSauvegardeesYmod.back())
+    if(m_positionsSauvegardeesPommeX.back() == m_positionsSauvegardeesXmod.back() && m_positionsSauvegardeesPommeY.back() == m_positionsSauvegardeesYmod.back())
     {
         return TRUE;
     }
@@ -705,44 +748,44 @@ void Board::pommeMangee()
     //std::cout << "pomme miam" << std::endl;
     augmenterLongueur();
     nouvellePositionPomme();
-    m_nbPasAvantDecroissancePoints=mesureDistancePommeTete();
+    m_nbStepsBeforeDecreasingPoints = mesureDistancePommeTete();
 
     //AFFICHAGE
-    //std::cout << "Nb de pommes mangées : " << m_positionsSauvegardeesPommeX.size()-1 << std::endl;
+    //std::cout << "Nb de pommes mangées : " << m_positionsSauvegardeesPommeX.size() - 1 << std::endl;
 
-    if(m_score+m_pointsEnCours<3000)
+    if(m_score + m_pointsCurrentApple < 3000)
     {
-        m_score+=m_pointsEnCours;
-        m_pointsEnCours=100;
+        m_score += m_pointsCurrentApple;
+        m_pointsCurrentApple = 100;
         //AFFICHAGE
         //std::cout << "	Le score est :" << m_score << "!" << std::endl;
         scoreChanged(m_score);
     }
     else
     {
-        m_score=3000;
+        m_score = 3000;
     }
 }
 
 void Board::sauvegardePositions()
 {
     m_directions.push_back(Helpers::convertirDirection(m_direction).c_str());
-    if(m_direction==0)
+    if(m_direction == 0)
     {
         m_positionsSauvegardeesX.push_back(m_positionsSauvegardeesX.back()+1);
         m_positionsSauvegardeesY.push_back(m_positionsSauvegardeesY.back());
     }
-    if(m_direction==1)
+    if(m_direction == 1)
     {
         m_positionsSauvegardeesX.push_back(m_positionsSauvegardeesX.back());
-        m_positionsSauvegardeesY.push_back(m_positionsSauvegardeesY.back()-1);
+        m_positionsSauvegardeesY.push_back(m_positionsSauvegardeesY.back() - 1);
     }
-    if(m_direction==2)
+    if(m_direction == 2)
     {
-        m_positionsSauvegardeesX.push_back(m_positionsSauvegardeesX.back()-1);
+        m_positionsSauvegardeesX.push_back(m_positionsSauvegardeesX.back() - 1);
         m_positionsSauvegardeesY.push_back(m_positionsSauvegardeesY.back());
     }
-    if(m_direction==3)
+    if(m_direction == 3)
     {
         m_positionsSauvegardeesX.push_back(m_positionsSauvegardeesX.back());
         m_positionsSauvegardeesY.push_back(m_positionsSauvegardeesY.back()+1);
@@ -755,13 +798,13 @@ void Board::sauvegardePositionsModulo()
 {
     m_positionsSauvegardeesXmod.push_back(m_positionsSauvegardeesX.back() % m_nbSquaresX);
     m_positionsSauvegardeesYmod.push_back(m_positionsSauvegardeesY.back() % m_nbSquaresY);
-    if(m_positionsSauvegardeesXmod.back()<0)
+    if(m_positionsSauvegardeesXmod.back() < 0)
     {
-        m_positionsSauvegardeesXmod.back()=m_positionsSauvegardeesXmod.back()+m_nbSquaresX;
+        m_positionsSauvegardeesXmod.back() = m_positionsSauvegardeesXmod.back()+m_nbSquaresX;
     }
-    if(m_positionsSauvegardeesYmod.back()<0)
+    if(m_positionsSauvegardeesYmod.back() < 0)
     {
-        m_positionsSauvegardeesYmod.back()=m_positionsSauvegardeesYmod.back()+m_nbSquaresY;
+        m_positionsSauvegardeesYmod.back() = m_positionsSauvegardeesYmod.back()+m_nbSquaresY;
     }
 }
 
@@ -770,42 +813,42 @@ void Board::sauvegardeArete()
     int xAvant(m_positionsSauvegardeesXmod.back());
     int yAvant(m_positionsSauvegardeesYmod.back());
 
-    //int xAvantAvant(m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size()-2]);
-    //int yAvantAvant(m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size()-2]);
+    //int xAvantAvant(m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size() - 2]);
+    //int yAvantAvant(m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size() - 2]);
     int aTesterValeur(-1);
 
-    if(m_direction==0)
+    if(m_direction == 0)
     {
-        m_aretesEst[m_nbSquaresX*yAvant+xAvant]+=1;
-        aTesterValeur=m_aretesEst[m_nbSquaresX*yAvant+xAvant];
+        m_aretesEst[m_nbSquaresX*yAvant+xAvant] += 1;
+        aTesterValeur = m_aretesEst[m_nbSquaresX*yAvant+xAvant];
         //std::cout << xAvant << " " << yAvant << " " << "est" << " " << m_aretesEst[m_nbSquaresX*yAvant+xAvant] << std::endl;
     }
-    else if(m_direction==1)
+    else if(m_direction == 1)
     {
-        m_aretesNord[m_nbSquaresX*yAvant+xAvant]+=1;
-        aTesterValeur=m_aretesNord[m_nbSquaresX*yAvant+xAvant];
+        m_aretesNord[m_nbSquaresX*yAvant+xAvant] += 1;
+        aTesterValeur = m_aretesNord[m_nbSquaresX*yAvant+xAvant];
         //std::cout << xAvant << " " << yAvant << " " << "nord" << " " << m_aretesNord[m_nbSquaresX*yAvant+xAvant] << std::endl;
     }
-    else if(m_direction==2)
+    else if(m_direction == 2)
     {
-        m_aretesOuest[m_nbSquaresX*yAvant+xAvant]+=1;
-        aTesterValeur=m_aretesOuest[m_nbSquaresX*yAvant+xAvant];
+        m_aretesOuest[m_nbSquaresX*yAvant+xAvant] += 1;
+        aTesterValeur = m_aretesOuest[m_nbSquaresX*yAvant+xAvant];
         //std::cout << xAvant << " " << yAvant << " " << "ouest" << " " << m_aretesOuest[m_nbSquaresX*yAvant+xAvant] << std::endl;
     }
-    else if(m_direction==3)
+    else if(m_direction == 3)
     {
-        m_aretesSud[m_nbSquaresX*yAvant+xAvant]+=1;
-        aTesterValeur=m_aretesSud[m_nbSquaresX*yAvant+xAvant];
+        m_aretesSud[m_nbSquaresX*yAvant+xAvant] += 1;
+        aTesterValeur = m_aretesSud[m_nbSquaresX*yAvant+xAvant];
         //std::cout << xAvant << " " << yAvant << " " << "sud" << " " << m_aretesSud[m_nbSquaresX*yAvant+xAvant] << std::endl;
     }
 
     //std::cout << m_valeurMaxAreteSauvegardee << std::endl;
-    if(m_valeurMaxAreteSauvegardee<aTesterValeur)
+    if(m_valeurMaxAreteSauvegardee < aTesterValeur)
     {
-        m_valeurMaxAreteSauvegardee=aTesterValeur;
-        if(m_quelPlateau=="arete" || m_quelPlateau=="nonoriente")
+        m_valeurMaxAreteSauvegardee = aTesterValeur;
+        if(m_quelPlateau == "arete" || m_quelPlateau == "nonoriente")
         {
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
         }
     }
 
@@ -816,52 +859,52 @@ void Board::sauvegardeGrille()
 {
     int xAvant(m_positionsSauvegardeesXmod.back());
     int yAvant(m_positionsSauvegardeesYmod.back());
-    m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant]+=1;
-    if(m_valeurMaxGrilleSauvegardee<m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant])
+    m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant] += 1;
+    if(m_valeurMaxGrilleSauvegardee < m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant])
     {
-        m_valeurMaxGrilleSauvegardee=m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant];
-        if(m_quelPlateau=="densite")
+        m_valeurMaxGrilleSauvegardee = m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant];
+        if(m_quelPlateau == "densite")
         {
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
         }
     }
     //std::cout << xAvant << " " << yAvant << " " << m_grilleSauvegardee[m_nbSquaresX*yAvant+xAvant] << std::endl;
 }
 
-void Board::avancerUnPas()
+void Board::motionOneStep()
 {
-    if(m_ancienneDirection==0)
+    if(m_previousDirection == 0)
     {
-        m_positionEnCoursX++;
+        m_currentXPosition++;
     }
-    if(m_ancienneDirection==1)
+    if(m_previousDirection == 1)
     {
-        m_positionEnCoursY--;
+        m_currentYPosition--;
     }
-    if(m_ancienneDirection==2)
+    if(m_previousDirection == 2)
     {
-        m_positionEnCoursX--;
+        m_currentXPosition--;
     }
-    if(m_ancienneDirection==3)
+    if(m_previousDirection == 3)
     {
-        m_positionEnCoursY++;
+        m_currentYPosition++;
     }
 
-    if(m_positionEnCoursY < 0)
+    if(m_currentYPosition < 0)
     {
-        m_positionEnCoursY += m_cellSize*m_nbSquaresY;
+        m_currentYPosition += m_cellSize*m_nbSquaresY;
     }
-    if(m_positionEnCoursY >= m_cellSize*m_nbSquaresY)
+    if(m_currentYPosition >= m_cellSize*m_nbSquaresY)
     {
-        m_positionEnCoursY -= m_cellSize*m_nbSquaresY;
+        m_currentYPosition -= m_cellSize*m_nbSquaresY;
     }
-    if(m_positionEnCoursX < 0)
+    if(m_currentXPosition < 0)
     {
-        m_positionEnCoursX += m_cellSize*m_nbSquaresX;
+        m_currentXPosition += m_cellSize*m_nbSquaresX;
     }
-    if(m_positionEnCoursX >= m_cellSize*m_nbSquaresX)
+    if(m_currentXPosition >= m_cellSize*m_nbSquaresX)
     {
-        m_positionEnCoursX -= m_cellSize*m_nbSquaresX;
+        m_currentXPosition -= m_cellSize*m_nbSquaresX;
     }
 }
 
@@ -895,12 +938,12 @@ void Board::writingHiScore()
 
 void Board::augmenterLongueur()
 {
-    m_nbPasAvantAgrandissementSnake.push_back(m_longueur+1);
+    m_nbPasAvantAgrandissementSnake.push_back(m_length+1);
 }
 
-void Board::perdre()
+void Board::endOfGame()
 {
-    m_perdre=TRUE;
+    m_endOfGame = TRUE;
     //AFFICHAGE
     //std::cout << m_score << " score final" << std::endl;
     writingWholeHistory();
@@ -911,20 +954,20 @@ void Board::gagner()
 {
     //AFFICHAGE
     //std::cout << "GAGNE !" << std::endl;
-    m_gagner=TRUE;
-    m_changementPlateau=1;
-    if(m_temps <= 1000)
+    m_win = TRUE;
+    m_changementPlateau = 1;
+    if(m_steps <= 1000)
     {
-        m_score += 10*(1000-m_temps);
+        m_score += 10*(1000 - m_steps);
     }
 
-    if(m_positionsSauvegardeesPommeX.size()-1 <= 100)
+    if(m_positionsSauvegardeesPommeX.size() - 1 <= 100)
     {
-        m_score += 100*(100-(m_positionsSauvegardeesPommeX.size()-1));
+        m_score += 100*(100 - (m_positionsSauvegardeesPommeX.size() - 1));
     }
 
     scoreChanged(m_score);
-    perdre();
+    endOfGame();
 }
 
 void Board::nouvellePositionPomme()
@@ -933,19 +976,19 @@ void Board::nouvellePositionPomme()
     //int Y(qrand() % m_nbSquaresY);
     int X(-1);
     int Y(-1);
-    while(X==-1)
+    while(X == -1)
     {
         int nouveauX(Alea::rand_integer(m_nbSquaresX));
         int nouveauY(Alea::rand_integer(m_nbSquaresY));
         //std::cout << nouveauX << " " << nouveauY << std::endl;
-        if(pasDeCollisionAvecSerpent(nouveauX,nouveauY) || m_perdre == TRUE)
+        if(pasDeCollisionAvecSerpent(nouveauX,nouveauY) || m_endOfGame == TRUE)
         {
-            X=nouveauX;
-            Y=nouveauY;
+            X = nouveauX;
+            Y = nouveauY;
         }
     }
 
-    if(m_perdre==FALSE)
+    if(m_endOfGame == FALSE)
     {
         m_positionPommeX = m_cellSize*X;
         m_positionPommeY = m_cellSize*Y;
@@ -959,7 +1002,7 @@ void Board::nouvellePositionPomme()
 
 bool Board::pasDeCollisionAvecSerpent(int nouveauX, int nouveauY)
 {
-    if((int) m_longueur+1 == m_nbSquaresX*m_nbSquaresY)
+    if((int) m_length + 1 == m_nbSquaresX*m_nbSquaresY)
     {
         sauvegardePositions(); //enregistre position en cours dans m_positionsSauvegardeesX/Y
         sauvegardePositionsModulo(); //idem modulo la taille du plateau (méthode à lancer après sauvegardePositions())
@@ -967,10 +1010,10 @@ bool Board::pasDeCollisionAvecSerpent(int nouveauX, int nouveauY)
         return 1;
     }
 
-    for(unsigned int i(0); i<m_longueur+1; i++)
+    for(unsigned int i(0); i < m_length+1; i++)
     {
-        //std::cout << "test avec : " << m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size()-1-i] << " " << m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size()-1-i] << std::endl;
-        if(m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size()-1-i]==nouveauX && m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size()-1-i]==nouveauY)
+        //std::cout << "test avec : " << m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size() - 1 - i] << " " << m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size() - 1 - i] << std::endl;
+        if(m_positionsSauvegardeesXmod[m_positionsSauvegardeesXmod.size() - 1 - i] == nouveauX && m_positionsSauvegardeesYmod[m_positionsSauvegardeesYmod.size() - 1 - i] == nouveauY)
         {
             return 0;
         }
@@ -984,14 +1027,14 @@ void Board::sauvegardePomme()
     int xAvant(m_positionsSauvegardeesPommeX.back());
     int yAvant(m_positionsSauvegardeesPommeY.back());
 
-    m_grillePomme[m_nbSquaresX*yAvant+xAvant]+=1;
+    m_grillePomme[m_nbSquaresX*yAvant+xAvant] += 1;
 
-    if(m_valeurMaxGrillePomme<m_grillePomme[m_nbSquaresX*yAvant+xAvant])
+    if(m_valeurMaxGrillePomme < m_grillePomme[m_nbSquaresX*yAvant+xAvant])
     {
-        m_valeurMaxGrillePomme=m_grillePomme[m_nbSquaresX*yAvant+xAvant];
-        if(m_quelPlateau=="pomme")
+        m_valeurMaxGrillePomme = m_grillePomme[m_nbSquaresX*yAvant+xAvant];
+        if(m_quelPlateau == "pomme")
         {
-            m_changementPlateau=1;
+            m_changementPlateau = 1;
         }
     }
     //std::cout << "pommy " << xAvant << " " << yAvant << " " <<  m_grillePomme[m_nbSquaresX*yAvant+xAvant] << std::endl;
@@ -1002,11 +1045,11 @@ int Board::mesureDistancePommeTete()
     int appleX(m_positionPommeX/m_cellSize);
     int appleY(m_positionPommeY/m_cellSize);
 
-    int headX(m_positionEnCoursX/m_cellSize);
-    int headY(m_positionEnCoursY/m_cellSize);
+    int headX(m_currentXPosition/m_cellSize);
+    int headY(m_currentYPosition/m_cellSize);
 
-    int distX(std::min(abs(headX - appleX), m_nbSquaresX-abs(headX - appleX)));
-    int distY(std::min(abs(headY - appleY), m_nbSquaresY-abs(headY - appleY)));
+    int distX(std::min(abs(headX - appleX), m_nbSquaresX - abs(headX - appleX)));
+    int distY(std::min(abs(headY - appleY), m_nbSquaresY - abs(headY - appleY)));
 
     // DEBUG
     // std::cout << distX << " " << distY << std::endl;
@@ -1076,48 +1119,62 @@ void Board::paintShot(QPainter &painter)
 {
     painter.setPen(Qt::NoPen);
     painter.setBrush(Qt::black);
-    if(m_gagner==TRUE)
+    if(m_win == TRUE)
     {
         painter.setBrush(QColor(60, 60, 200));
     }
 
     //dessiner corps
-    for(unsigned int i(0); i<std::min(m_positionsSauvegardeesXmod.size()-1, m_longueur); i++)
+    for(unsigned int i(0); i < std::min(m_positionsSauvegardeesXmod.size() - 1, m_length); i++)
     {
-        painter.drawRect(m_rectCorps(m_positionsSauvegardeesXmod.size()-i-2,0));
+        painter.drawRect(m_rectCorps(m_positionsSauvegardeesXmod.size() - i - 2,0));
     }
 
+
     //dessiner queue mouvante
-    if(m_positionsSauvegardeesXmod.size()>m_longueur+1)
+    if(m_positionsSauvegardeesXmod.size() > m_length + 1)
     {
-        // painter.setBrush(Qt::blue);
+        //painter.setBrush(Qt::blue);
         painter.drawRect(m_rectQueue(0));
     }
 
-    //dessiner tête
+
+    // Head
     //painter.setBrush(Qt::green);
+
+
     painter.drawRect(m_rectHeadCorner(0));
-    if(m_perdre==TRUE)
+
+    if(m_endOfGame == TRUE)
     {
         painter.setBrush(Qt::red);
     }
-    if(m_gagner==TRUE)
+    if(m_win == TRUE)
     {
         painter.setBrush(QColor(80, 80, 200));
     }
 
     painter.drawRect(m_rectHeadUsual(0));
 
+
+
+    // Apple
+
     QRect pomme(m_rectPomme(0)); //placé au début, on le déplace dans la ligne suivante
     painter.setPen(Qt::NoPen);
 
     //painter.setBrush(Qt::green);
-    painter.setBrush(QColor(std::min(2*(100-m_pointsEnCours),128), std::max(255-1*(100-m_pointsEnCours),128), std::min(2*(100-m_pointsEnCours),128)));
-    //painter.drawEllipse(pomme);
-    if(m_gagner==FALSE)
+    painter.setBrush(QColor(std::min(2*(100 - m_pointsCurrentApple),128),
+                            std::max(255 - 1*(100 - m_pointsCurrentApple),128),
+                            std::min(2*(100 - m_pointsCurrentApple),128)));
+
+    if(m_win == FALSE)
     {
         painter.drawRect(pomme);
     }
+
+
+
 }
 
 
@@ -1146,7 +1203,7 @@ void Board::paintTout(QPainter &painter)
 {
     //setPalette(QPalette(QColor(250, 250, 200)));
     painter.setPen(Qt::NoPen);
-    if(m_quelPlateau=="densite" || m_quelPlateau=="arete" || m_quelPlateau=="nonoriente" || m_quelPlateau=="pomme")
+    if(m_quelPlateau == "densite" || m_quelPlateau == "arete" || m_quelPlateau == "nonoriente" || m_quelPlateau == "pomme")
     {
         painter.setBrush(Qt::white);
     }
@@ -1168,13 +1225,13 @@ void Board::paintDensite(QPainter &painter)
 
     int minTransp(20);
     int maxTransp(240);
-    int pas((maxTransp-minTransp)/(m_valeurMaxGrilleSauvegardee+1));
+    int pas((maxTransp - minTransp)/(m_valeurMaxGrilleSauvegardee + 1));
 
-    for(int y(0); y<m_nbSquaresY; y++)
+    for(int y(0); y < m_nbSquaresY; y++)
     {
-        for(int x(0); x<m_nbSquaresX; x++)
+        for(int x(0); x < m_nbSquaresX; x++)
         {
-            painter.setBrush(QColor(0, 0, 255, minTransp+pas*m_grilleSauvegardee[y*m_nbSquaresX+x]));
+            painter.setBrush(QColor(0, 0, 255, minTransp + pas*m_grilleSauvegardee[y*m_nbSquaresX + x]));
             painter.drawRect(m_rect(x* m_cellSize, y* m_cellSize));
         }
        }
@@ -1187,22 +1244,22 @@ void Board::paintArete(QPainter &painter)
 
     int minTransp(20);
     int maxTransp(240);
-    int pas((maxTransp-minTransp)/(m_valeurMaxAreteSauvegardee+1));
+    int pas((maxTransp - minTransp)/(m_valeurMaxAreteSauvegardee + 1));
 
-    for(int y(0); y<m_nbSquaresY; y++)
+    for(int y(0); y < m_nbSquaresY; y++)
     {
-        for(int x(0); x<m_nbSquaresX; x++)
+        for(int x(0); x < m_nbSquaresX; x++)
         {
-            painter.setBrush(QColor(255, 0, 0, minTransp+pas*m_aretesEst[y*m_nbSquaresX+x]));
+            painter.setBrush(QColor(255, 0, 0, minTransp + pas*m_aretesEst[y*m_nbSquaresX + x]));
             painter.drawPolygon(m_triangleEst(x,y));
 
-            painter.setBrush(QColor(255, 0, 0, minTransp+pas*m_aretesNord[y*m_nbSquaresX+x]));
+            painter.setBrush(QColor(255, 0, 0, minTransp + pas*m_aretesNord[y*m_nbSquaresX + x]));
             painter.drawPolygon(m_triangleNord(x,y));
 
-            painter.setBrush(QColor(255, 0, 0, minTransp+pas*m_aretesOuest[y*m_nbSquaresX+x]));
+            painter.setBrush(QColor(255, 0, 0, minTransp + pas*m_aretesOuest[y*m_nbSquaresX + x]));
             painter.drawPolygon(m_triangleOuest(x,y));
 
-            painter.setBrush(QColor(255, 0, 0, minTransp+pas*m_aretesSud[y*m_nbSquaresX+x]));
+            painter.setBrush(QColor(255, 0, 0, minTransp + pas*m_aretesSud[y*m_nbSquaresX + x]));
             painter.drawPolygon(m_triangleSud(x,y));
         }
     }
@@ -1217,43 +1274,43 @@ void Board::paintNonOriente(QPainter &painter)
 
     int minTransp(20);
     int maxTransp(240);
-    int pas((maxTransp-minTransp)/(2*m_valeurMaxAreteSauvegardee));
+    int pas((maxTransp - minTransp)/(2*m_valeurMaxAreteSauvegardee));
 
-    for(int y(0); y<m_nbSquaresY; y++)
+    for(int y(0); y < m_nbSquaresY; y++)
     {
-        for(int x(0); x<m_nbSquaresX; x++)
+        for(int x(0); x < m_nbSquaresX; x++)
         {
-            if(x!=0)
+            if(x != 0)
             {
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesEst[y*m_nbSquaresX+x]+m_aretesOuest[y*m_nbSquaresX+(x-1)])));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesEst[y*m_nbSquaresX + x] + m_aretesOuest[y*m_nbSquaresX + (x - 1)])));
                 painter.drawPolygon(m_triangleEst(x,y));
 
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesEst[y*m_nbSquaresX+x]+m_aretesOuest[y*m_nbSquaresX+(x-1)])));
-                painter.drawPolygon(m_triangleOuest(x-1,y));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesEst[y*m_nbSquaresX + x] + m_aretesOuest[y*m_nbSquaresX + (x - 1)])));
+                painter.drawPolygon(m_triangleOuest(x - 1,y));
             }
             else
             {
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesEst[y*m_nbSquaresX+x]+m_aretesOuest[y*m_nbSquaresX+(x-1)+m_nbSquaresX])));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesEst[y*m_nbSquaresX + x] + m_aretesOuest[y*m_nbSquaresX + (x - 1) + m_nbSquaresX])));
                 painter.drawPolygon(m_triangleEst(x,y));
 
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesEst[y*m_nbSquaresX+x]+m_aretesOuest[y*m_nbSquaresX+(x-1)+m_nbSquaresX])));
-                painter.drawPolygon(m_triangleOuest(x-1+m_nbSquaresX,y));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesEst[y*m_nbSquaresX + x] + m_aretesOuest[y*m_nbSquaresX + (x - 1) + m_nbSquaresX])));
+                painter.drawPolygon(m_triangleOuest(x - 1 + m_nbSquaresX,y));
             }
 
-            if(y!=0)
+            if(y != 0)
             {
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesNord[(y-1)*m_nbSquaresX+x]+m_aretesSud[y*m_nbSquaresX+x])));
-                painter.drawPolygon(m_triangleNord(x,y-1));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesNord[(y - 1)*m_nbSquaresX + x] + m_aretesSud[y*m_nbSquaresX + x])));
+                painter.drawPolygon(m_triangleNord(x,y - 1));
 
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesNord[(y-1)*m_nbSquaresX+x]+m_aretesSud[y*m_nbSquaresX+x])));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesNord[(y - 1)*m_nbSquaresX + x] + m_aretesSud[y*m_nbSquaresX + x])));
                 painter.drawPolygon(m_triangleSud(x,y));
             }
             else
             {
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesNord[(y-1+m_nbSquaresY)*m_nbSquaresX+x]+m_aretesSud[y*m_nbSquaresX+x])));
-                painter.drawPolygon(m_triangleNord(x,y-1+m_nbSquaresY));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesNord[(y - 1 + m_nbSquaresY)*m_nbSquaresX + x] + m_aretesSud[y*m_nbSquaresX + x])));
+                painter.drawPolygon(m_triangleNord(x,y - 1 + m_nbSquaresY));
 
-                painter.setBrush(QColor(255, 0, 0, minTransp+pas*(m_aretesNord[(y-1+m_nbSquaresY)*m_nbSquaresX+x]+m_aretesSud[y*m_nbSquaresX+x])));
+                painter.setBrush(QColor(255, 0, 0, minTransp + pas*(m_aretesNord[(y - 1 + m_nbSquaresY)*m_nbSquaresX + x] + m_aretesSud[y*m_nbSquaresX + x])));
                 painter.drawPolygon(m_triangleSud(x,y));
             }
         }
@@ -1266,14 +1323,14 @@ void Board::paintPomme(QPainter &painter)
     painter.setPen(Qt::NoPen);
     int minTransp(20);
     int maxTransp(240);
-    int pas((maxTransp-minTransp)/(m_valeurMaxGrillePomme+1));
+    int pas((maxTransp - minTransp)/(m_valeurMaxGrillePomme + 1));
     //std::cout << m_valeurMaxGrillePomme << " est nb pommes" << std::endl;
-    for(int y(0); y<m_nbSquaresY; y++)
+    for(int y(0); y < m_nbSquaresY; y++)
     {
-        for(int x(0); x<m_nbSquaresX; x++)
+        for(int x(0); x < m_nbSquaresX; x++)
         {
-            //std::cout << x << "	" << y << "	" << m_grillePomme[y*m_nbSquaresX+x] << std::endl;
-            painter.setBrush(QColor(0, 255, 0, minTransp+pas*m_grillePomme[y*m_nbSquaresX+x]));
+            //std::cout << x << "	" << y << "	" << m_grillePomme[y*m_nbSquaresX + x] << std::endl;
+            painter.setBrush(QColor(0, 255, 0, minTransp + pas*m_grillePomme[y*m_nbSquaresX + x]));
             painter.drawRect(m_rect(x* m_cellSize, y* m_cellSize));
         }
     }
@@ -1284,10 +1341,10 @@ void Board::paintPomme(QPainter &painter)
 ////////////////////////
 void Board::sauvegardeTempsPointsNbPommesMangeesLongueurSnake()
 {
-    m_tempsSave.push_back(m_temps);
+    m_stepsSave.push_back(m_steps);
     m_scoreSave.push_back(m_score);
-    m_nbPommesMangeesSave.push_back(m_positionsSauvegardeesPommeX.size()-1);
-    m_longueurSnakeSave.push_back(m_longueur+1);
+    m_nbPommesMangeesSave.push_back(m_positionsSauvegardeesPommeX.size() - 1);
+    m_lengthSnakeSave.push_back(m_length + 1);
     m_positionsSauvegardeesPommeXcomplet.push_back(m_positionsSauvegardeesPommeX.back());
     m_positionsSauvegardeesPommeYcomplet.push_back(m_positionsSauvegardeesPommeY.back());
 }
@@ -1300,9 +1357,9 @@ void Board::writingWholeHistory()
         QTextStream out(&data);
         //out << "9999 9999" << endl; //endl de la classe QTextStream, pas de std.
 
-        //std::cout << m_tempsSave.size() << " " << m_scoreSave.size() << " " << m_nbPommesMangeesSave.size() << " " << m_longueurSnakeSave.size() << " " <<  m_positionsSauvegardeesX.size() << " " << m_positionsSauvegardeesY.size() << " " << m_positionsSauvegardeesPommeXcomplet.size() << " " << m_positionsSauvegardeesPommeYcomplet.size() << std::endl;
+        //std::cout << m_stepsSave.size() << " " << m_scoreSave.size() << " " << m_nbPommesMangeesSave.size() << " " << m_lengthSnakeSave.size() << " " <<  m_positionsSauvegardeesX.size() << " " << m_positionsSauvegardeesY.size() << " " << m_positionsSauvegardeesPommeXcomplet.size() << " " << m_positionsSauvegardeesPommeYcomplet.size() << std::endl;
 
-        if(m_partieEnCours==0)
+        if(m_currentPlayId == 0)
         {
             out << "partieEnCours" << "	" << "temps" << "	" << "score" << "	"
                 << "nbPommesMangees" << "	" << "longueurSnake" << "	"
@@ -1311,10 +1368,10 @@ void Board::writingWholeHistory()
                  << endl;
         }
 
-        for(unsigned int i(0); i< m_positionsSauvegardeesX.size(); i++)
+        for(unsigned int i(0); i < m_positionsSauvegardeesX.size(); i++)
         {
-            out << m_partieEnCours << "	" << m_tempsSave[i] << "	" << m_scoreSave[i] << "	"
-                << m_nbPommesMangeesSave[i] << "	" << m_longueurSnakeSave[i] << "	"
+            out << m_currentPlayId << "	" << m_stepsSave[i] << "	" << m_scoreSave[i] << "	"
+                << m_nbPommesMangeesSave[i] << "	" << m_lengthSnakeSave[i] << "	"
                 <<  m_positionsSauvegardeesX[i] << "	" << m_positionsSauvegardeesY[i] << "	"
                 << m_positionsSauvegardeesPommeXcomplet[i] << "	" << m_positionsSauvegardeesPommeYcomplet[i]
                 << endl;

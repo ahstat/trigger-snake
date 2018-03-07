@@ -41,20 +41,94 @@ class Board : public QWidget
     protected:
 
     private:
-        void begin(); //active le timer de déplacement
-
-        void keyPressEvent(QKeyEvent *event);
-        void paintEvent(QPaintEvent *event); //lance paintShot
-
         /*
-          Board and cells
+          Private attributes
         */
+        ////
+        // General characteristics
+        ////
+        // speed of game (in ms)
+        int m_timerSpeed;
         // number of cells in X
         int m_nbSquaresX;
         // number of cells in Y
         int m_nbSquaresY;
         // size of a cell in pixels ; each cells has area of m_cellSize^2
         int m_cellSize;
+        // score of the current game
+        int m_score;
+        // previous hi-score
+        int m_hiScore;
+        // current play number
+        int m_currentPlayId;
+        // Whether it is the end of current game
+        bool m_endOfGame;
+        // Whether player has win
+        bool m_win;
+
+        ////
+        // Information on the snake
+        ////
+        // direction: 0=east ; 1=north ; 2=west ; 3=south ; -1=undefined
+        int m_direction;
+        // previous direction: in 0, 1, 2, 3, -1, as for m_direction
+        int m_previousDirection;
+        // this boolean helps to constraint the snake to stay on the grid
+        // When a new direction is set and m_repositionOnGrid == TRUE, the
+        // snake will wait to be on a complete cell before moving
+        bool m_repositionOnGrid;
+        // current X position in pixels in [0, m_cellSize * m_nbSquaresX[
+        int m_currentXPosition;
+        // current Y position in pixels in [0, m_cellSize * m_nbSquaresY[
+        int m_currentYPosition;
+        // length of the snake: 0=only the head, 1=2 cells, 2=3 cells etc.
+        unsigned int m_length;
+        // how long the snake has crawled (in number of cells)
+        int m_steps;
+
+        ////
+        // Relations between apple and snake
+        ////
+        // number of points of the current apple
+        // set at 100 for a fresh apple, and slowly decrease to 1
+        int m_pointsCurrentApple;
+        // number of steps we let before apple begins to rot
+        // set as distance between snake and apple when the apple appears
+        int m_nbStepsBeforeDecreasingPoints;
+
+
+
+
+        ////
+        // Saving all states of the game
+        ////
+
+
+
+
+
+
+
+
+        /*
+          Private methods
+        */
+        void newGame();
+
+
+
+
+
+        QRect m_rectPlateau();
+
+
+
+        void begin(); //active le timer de déplacement
+
+        void keyPressEvent(QKeyEvent *event);
+        void paintEvent(QPaintEvent *event); //lance paintShot
+
+
 
         /*
           Selecting areas
@@ -85,21 +159,18 @@ class Board : public QWidget
         QRect m_rectPomme(bool affiche);
 
 
-
-
-
         QRegion m_snakeRegion();
         QRegion m_appleRegion();
 
 
 
-        void newGame();
-        void avancer();
+
+        void motion();
         void testCollision(); //vérification si on touche le snake après avoir avancé. Si c'est le cas, on lance ecrire()
-        void avancerUnPas(); //avance d'un pixel dans le direction en cours (modulo le plateau)
+        void motionOneStep(); //avance d'un pixel dans le direction en cours (modulo le plateau)
         void augmenterLongueur(); //augmente la longueur de 1
         void agrandissementSnake(); //test s'il faut augmenter maintenant le snake
-        void perdre();
+        void endOfGame();
         void gagner();
         void nouvellePositionPomme();
         bool collisionAvecPomme();
@@ -131,19 +202,11 @@ class Board : public QWidget
 
         //timer de déplacement en temps réel
         QTimer *m_autoMoveTimer; //The QTimer class provides ''repetitive'' and single-shot timers.
-        int m_vitesseTimer;
 
 
 
-        //information sur le snake
-        int m_direction; //direction en cours : 0=est ; 1=nord ; 2=ouest ; 3=sud ; -1=nonDéfini
-        int m_ancienneDirection; //direction précédente (pour éviter des mouvements du snake), encore dans {-1,0,1,2,3}
-        bool m_repositionnerSurLaGrille; //lié à ancienneDirection (pour éviter des mouvements du snake)
-        int m_positionEnCoursX; //position dans [0, m_cellSize*m_nbSquaresX[
-        int m_positionEnCoursY; //position dans [0, m_cellSize*m_nbSquaresY[
-        unsigned int m_longueur; //longueur du snake hors queue (0 si seulement la tête, etc.)
-        bool m_perdre;
-        bool m_gagner;
+
+
 
         //informations sauvegardées du snake (pour les datas)
         std::vector<int> m_positionsSauvegardeesX; //dans {0, 1 ... longueurGrille-1}
@@ -191,19 +254,15 @@ class Board : public QWidget
 
 
 
-        int m_score;
-        int m_pointsEnCours; //de 100 et décroît progressivement
 
         void decroitPointEnCours();
-        int m_nbPasAvantDecroissancePoints;
-        int m_temps;
 
 
 
 
-        int m_hiScore;
 
-        int m_partieEnCours;
+
+
 
         void writingHiScore();
 
@@ -214,7 +273,6 @@ class Board : public QWidget
         /*
           Painting main layer
         */
-        QRect m_rectPlateau();
         void paintShot(QPainter &painter);
 
         /*
@@ -261,13 +319,13 @@ class Board : public QWidget
           history.
         */
         // Steps 0, 1, ..., T-1
-        std::vector<int> m_tempsSave;
+        std::vector<int> m_stepsSave;
         // Score at each step t
         std::vector<int> m_scoreSave;
         // Number of apples eaten at each step t
         std::vector<int> m_nbPommesMangeesSave;
         // Length of snake at each step t
-        std::vector<int> m_longueurSnakeSave;
+        std::vector<int> m_lengthSnakeSave;
         // Position X of apples at each step t (int between 0 and longueurGrille-1}
         std::vector<int> m_positionsSauvegardeesPommeXcomplet;
         // Position Y of apples at each step t

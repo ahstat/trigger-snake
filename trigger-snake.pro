@@ -23,4 +23,4 @@ HEADERS  += \
     Board.h \
     Helpers.h
 
-FORMS    += mainwindow.ui
+FORMS    +=
