@@ -41,9 +41,15 @@ class Board : public QWidget
     protected:
 
     private:
-        /*
-          Private attributes
-        */
+        /*********************
+        * Private attributes *
+        *********************/
+        ////
+        // QTimer
+        ////
+        //The QTimer class provides ''repetitive'' and single-shot timers.
+        QTimer *m_autoMoveTimer;
+
         ////
         // General characteristics
         ////
@@ -73,6 +79,7 @@ class Board : public QWidget
         int m_direction;
         // previous direction: in 0, 1, 2, 3, -1, as for m_direction
         int m_previousDirection;
+
         // this boolean helps to constraint the snake to stay on the grid
         // When a new direction is set and m_repositionOnGrid == TRUE, the
         // snake will wait to be on a complete cell before moving
@@ -81,10 +88,19 @@ class Board : public QWidget
         int m_currentXPosition;
         // current Y position in pixels in [0, m_cellSize * m_nbSquaresY[
         int m_currentYPosition;
+
         // length of the snake: 0=only the head, 1=2 cells, 2=3 cells etc.
         unsigned int m_length;
         // how long the snake has crawled (in number of cells)
         int m_steps;
+
+        ////
+        // Information on the apple
+        ////
+        // current X apple in pixels in [0, m_cellSize * m_nbSquaresX[
+        int m_currentXApple;
+        // current Y position in pixels in [0, m_cellSize * m_nbSquaresY[
+        int m_currentYApple;
 
         ////
         // Relations between apple and snake
@@ -96,40 +112,197 @@ class Board : public QWidget
         // set as distance between snake and apple when the apple appears
         int m_nbStepsBeforeDecreasingPoints;
 
-
-
-
-        ////
-        // Saving all states of the game
-        ////
-
-
-
-
-
-
-
-
+        // deque of number of steps before increasing the snake
         /*
-          Private methods
+          Example: snake has length 5, it eats apple, we push 5+1 to the deque
+          Two steps after, snake has length 6, it eats apple, we push 6+1
+          At each step of the snake, all elements of deque decrease by 1
+          When the front element reaches 0, we pop it and increase the snake
+          In our example:
+          date t: [6]; t+1: [5]; t+2: [4 7]; t+3: [3 6]; t+4: [2 5];
+          t+5: [1 6]; t+6: [5] and snake size has increased; t+7: [4], etc.
         */
+        std::deque<unsigned int> m_nbStepsBeforeIncreasingSnake;
+
+        // number of pixels for which the snake's tail do not move
+        /*
+          when the snake grows, the tail must not move for m_cellSize pixels
+          m_nbPixDoNotMoveTail is the number of pixels remaining before moving
+          the tail again.
+          m_nbPixDoNotMoveTail is normally 0, and increase by m_cellSize when
+          we begin to increase snake's size
+        */
+        unsigned int m_nbPixDoNotMoveTail;
+
+        ////
+        // Board layers
+        ////
+        // Current board layer:
+        // "" for the classic board layer,
+        // "density" for density of snake in each cell,
+        // "edge" for density of snake in each edge,
+        // "nonoriented" for density of snake in each non-oriented edge,
+        // "apple" for density of apple in each cell.
+        std::string m_currentBoard;
+
+        // Whether the board layer has changed
+        bool m_isBoardLayerChanged;
+
+        ////
+        // Saving partial states of the game
+        ////
+        // save of absolute X-positions of the snake, each in ]-Inf, +Inf[
+        // i.e. we do not reset counter when crossing the torus
+        // 1 element for 1 step
+        std::vector<int> m_savedXPositions;
+        // save of absolute Y-positions of the snake, each in ]-Inf, +Inf[
+        // 1 element for 1 step
+        std::vector<int> m_savedYPositions;
+
+        // save of X-positions of the snake, each in [0, m_nbSquaresX-1]
+        // 1 element for 1 step
+        std::vector<int> m_savedXPositionsMod;
+        // save of Y-positions of the snake, each in [0, m_nbSquaresY-1]
+        // 1 element for 1 step
+        std::vector<int> m_savedYPositionsMod;
+
+        // save of directions, each in {"north", "east", "south", "west"}
+        // 1 element for 1 change in direction
+        std::vector<std::string> m_savedDirections;
+
+        // save of X-positions of apple, each in [0, m_nbSquaresX-1]
+        // 1 element for 1 new apple
+        std::vector<int> m_savedXPositionsApple;
+        // save of Y-positions of apple, each in [0, m_nbSquaresY-1]
+        // 1 element for 1 new apple
+        std::vector<int> m_savedYPositionsApple;
+
+        ////
+        // Saving additional states for layers
+        ////
+        // number of times the snake has crossed each cell of the grid,
+        // cells are indexed line by line from 0 to m_nbSquaresX*m_nbSquaresY-1
+        std::vector<int> m_savedDensity;
+
+        // number of times the snake has crossed each cell from the north,
+        // (resp. east, south, west),
+        // cells are indexed line by line from 0 to m_nbSquaresX*m_nbSquaresY-1
+        std::vector<int> m_savedNorthEdges;
+        std::vector<int> m_savedEastEdges;
+        std::vector<int> m_savedSouthEdges;
+        std::vector<int> m_savedWestEdges;
+
+        // number of times an apple has appeared in each cell of the grid,
+        // cells are indexed line by line from 0 to m_nbSquaresX*m_nbSquaresY-1
+        std::vector<int> m_savedApple;
+
+        // maximum element of m_savedDensity
+        int m_savedMaxDensityValue;
+        // maximum element of the union of the 4 saved edges vectors
+        int m_savedMaxEdgeValue;
+        // maximum element of m_savedApple
+        int m_savedMaxAppleValue;
+
+        ////
+        // Saving whole game history (for export)
+        ////
+        /*
+          Each vector has size T
+          (T: number of moves/steps of the snake from beginning of this game).
+          This information is only used to output a txt file containing whole
+          history.
+        */
+        // Steps 0, 1, ..., T-1
+        std::vector<int> m_savedAllSteps;
+        // Score at each step t
+        std::vector<int> m_savedAllScore;
+        // Number of apples eaten at each step t
+        std::vector<int> m_savedAllNbApples;
+        // Length of snake at each step t
+        std::vector<int> m_savedAllSnakeLength;
+        // Position X of apples at each step t (int in [0, m_nbSquaresX-1]}
+        std::vector<int> m_savedAllXPositionsApple;
+        // Position Y of apples at each step t (int in [0, m_nbSquaresY-1]}
+        std::vector<int> m_savedAllYPositionsApple;
+
+        /******************
+        * Private methods *
+        ******************/
+        ////
+        // General behavior of the game
+        ////
         void newGame();
-
-
-
-
-
-        QRect m_rectPlateau();
-
-
-
         void begin(); //active le timer de déplacement
+        void endOfGame();
+        void win();
 
+        // For debugging, print rectangle position in console
+        void display(bool isToBeDiplayed, std::string objName, QRect result) const;
+
+        void writingHiScore();
+
+        ////
+        // Snake behavior
+        ////
+        void motion();
+        void motionOneStep(); //avance d'un pixel dans le direction en cours (modulo le plateau)
+
+        bool collisionWithSnake(int newX, int newY);
+
+        ////
+        // Apple behavior
+        ////
+        void newApplePosition();
+        void decreasingPoints();
+
+        ////
+        // Relations between apple and snake behaviors
+        ////
+        int distanceAppleSnake(); //distance de Manhattan (modulo les bords)
+
+        void testCollision(); //vérification si on touche le snake après avoir avancé. Si c'est le cas, on lance ecrire()
+        bool collisionWithApple();
+        void eatenApple();
+
+        void planAnIncreaseOfTheSnake(); //augmente la longueur de 1
+        void increaseSnake(); //test s'il faut augmenter maintenant le snake
+
+        ////
+        // Saving partial states of the game
+        ////
+        void savePositions(); //enregistre position en cours dans m_savedXPositions/Y
+        void savePositionsMod(); //idem modulo la taille du plateau (méthode à lancer après savePositions())
+
+        ////
+        // Saving additional states for layers
+        ////
+        void saveDensity();
+        void saveEdge();
+        void saveApple();
+
+        ////
+        // Saving whole game history (for export)
+        ////
+        // Update previous vectors by adding current state
+        void saveAllHistory();
+
+        // Writting previous vectors into a txt file
+        void writingAllHistory();
+
+        /*********
+        * Events *
+        *********/
+        // Key press event
         void keyPressEvent(QKeyEvent *event);
-        void paintEvent(QPaintEvent *event); //lance paintShot
+        // Paint event
+        void paintEvent(QPaintEvent *event);
 
 
 
+        /******************
+        * Graphical areas *
+        ******************/
+        QRect m_board();
         /*
           Selecting areas
         */
@@ -140,206 +313,56 @@ class Board : public QWidget
         // Area for the snake
         ////
         // Where is the head of the snake?
-        QRect m_rectHeadUsual(bool affiche);
+        QRect m_rectHeadUsual(bool isToBeDiplayed);
         // Where is the head while crossing a torus' corner?
-        QRect m_rectHeadCorner(bool affiche);
+        QRect m_rectHeadCorner(bool isToBeDiplayed);
         // m_rectHeadUsual union m_rectHeadCorner forms the complete head region
         QRegion m_rectHead();
         // Where is the i-th component of the snake's body? (from i = 1)
-        QRect m_rectCorps(unsigned int i, bool affiche);
+        QRect m_rectBody(unsigned int i, bool isToBeDiplayed);
         // Where is the tail of the snake?
-        QRect m_rectQueue(bool affiche);
-        // For debugging, print rectangle position in console
-        void afficher(bool affiche, std::string objName, QRect result) const;
+        QRect m_rectTail(bool isToBeDiplayed);
 
         ////
         // Area for the apples
         ////
         // Where is the current apple?
-        QRect m_rectPomme(bool affiche);
+        QRect m_rectApple(bool isToBeDiplayed);
 
+        QRegion m_regionSnake();
+        QRegion m_regionApple();
 
-        QRegion m_snakeRegion();
-        QRegion m_appleRegion();
+        QPolygon m_northTriangle(int x, int y);
+        QPolygon m_southTriangle(int x, int y);
+        QPolygon m_eastTriangle(int x, int y);
+        QPolygon m_westTriangle(int x, int y);
 
 
-
-
-        void motion();
-        void testCollision(); //vérification si on touche le snake après avoir avancé. Si c'est le cas, on lance ecrire()
-        void motionOneStep(); //avance d'un pixel dans le direction en cours (modulo le plateau)
-        void augmenterLongueur(); //augmente la longueur de 1
-        void agrandissementSnake(); //test s'il faut augmenter maintenant le snake
-        void endOfGame();
-        void gagner();
-        void nouvellePositionPomme();
-        bool collisionAvecPomme();
-        void pommeMangee();
-        int mesureDistancePommeTete(); //distance de Manhattan (modulo les bords)
-
-
-
-
-        void sauvegardePositions(); //enregistre position en cours dans m_positionsSauvegardeesX/Y
-        void sauvegardePositionsModulo(); //idem modulo la taille du plateau (méthode à lancer après sauvegardePositions())
-        void sauvegardeGrille();
-        void sauvegardeArete();
-        void sauvegardePomme();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        //timer de déplacement en temps réel
-        QTimer *m_autoMoveTimer; //The QTimer class provides ''repetitive'' and single-shot timers.
-
-
-
-
-
-
-        //informations sauvegardées du snake (pour les datas)
-        std::vector<int> m_positionsSauvegardeesX; //dans {0, 1 ... longueurGrille-1}
-        std::vector<int> m_positionsSauvegardeesY;
-        std::vector<int> m_positionsSauvegardeesXmod;
-        std::vector<int> m_positionsSauvegardeesYmod;
-        std::vector<std::string> m_directions;
-
-        std::vector<int> m_grilleSauvegardee; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        int m_valeurMaxGrilleSauvegardee;
-
-        std::vector<int> m_aretesEst; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        std::vector<int> m_aretesNord; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        std::vector<int> m_aretesOuest; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        std::vector<int> m_aretesSud; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        int m_valeurMaxAreteSauvegardee;
-
-        //affichage graphique sur le plateau
-
-
-
-
-
-
-
-        std::deque<unsigned int> m_nbPasAvantAgrandissementSnake;
-        unsigned int m_nePasBougerLaQueue;
-
-        //pommes
-        int m_positionPommeX; //position dans [0, m_cellSize*m_nbSquaresX[
-        int m_positionPommeY; //position dans [0, m_cellSize*m_nbSquaresY[
-
-
-        std::vector<int> m_positionsSauvegardeesPommeX; //dans {0, 1 ... longueurGrille-1}
-        std::vector<int> m_positionsSauvegardeesPommeY;
-
-        std::vector<int> m_grillePomme; //valeurs de 0 à m_nbSquaresX*m_nbSquaresY-1
-        int m_valeurMaxGrillePomme;
-
-        bool pasDeCollisionAvecSerpent(int nouveauX, int nouveauY);
-
-
-
-
-
-
-
-
-        void decroitPointEnCours();
-
-
-
-
-
-
-
-
-        void writingHiScore();
-
-        /////////////////////////
-        // Painting and boards //
-        /////////////////////////
-
+        /***********
+        * Painting *
+        ***********/
         /*
           Painting main layer
         */
         void paintShot(QPainter &painter);
+        // When m_isBoardLayerChanged==1, we redraw the whole board
+        void paintWholeBoard(QPainter &painter);
 
-        /*
 
-        */
-
-        /*
-          Painting the whole board
-        */
-        // Whether the board layer has changed
-        bool m_changementPlateau;
-
-        // When m_changementPlateau==1, we redraw the whole board
-        void paintTout(QPainter &painter);
-
-        /*
-          Current layer and painting statistic board layers
-        */
-        // Current board layer
-        // "" for the classic board layer
-        // "densite", "arete", "nonoriente", "pomme" for statistic layers
-        std::string m_quelPlateau;
+        ////
+        // Board layers
+        ////
 
         // Painting snake's density layer
-        void paintDensite(QPainter &painter);
+        void paintDensity(QPainter &painter);
         // Painting oriented edges crossed
-        void paintArete(QPainter &painter);
-        QPolygon m_triangleNord(int x, int y);
-        QPolygon m_triangleSud(int x, int y);
-        QPolygon m_triangleEst(int x, int y);
-        QPolygon m_triangleOuest(int x, int y);
+        void paintEdge(QPainter &painter);
         // Painting non-oriented edges crossed
-        void paintNonOriente(QPainter &painter);
+        void paintNonOriented(QPainter &painter);
         // Painting apple's density layer
-        void paintPomme(QPainter &painter);
+        void paintApple(QPainter &painter);
 
-        ////////////////////////
-        // Whole game history //
-        ////////////////////////
-        /*
-          Each vector has size T
-          (T: number of moves/steps of the snake from beginning of this game).
-          This information is only used to output a txt file containing whole
-          history.
-        */
-        // Steps 0, 1, ..., T-1
-        std::vector<int> m_stepsSave;
-        // Score at each step t
-        std::vector<int> m_scoreSave;
-        // Number of apples eaten at each step t
-        std::vector<int> m_nbPommesMangeesSave;
-        // Length of snake at each step t
-        std::vector<int> m_lengthSnakeSave;
-        // Position X of apples at each step t (int between 0 and longueurGrille-1}
-        std::vector<int> m_positionsSauvegardeesPommeXcomplet;
-        // Position Y of apples at each step t
-        std::vector<int> m_positionsSauvegardeesPommeYcomplet;
 
-        /*
-          Update previous vectors by adding current state
-        */
-        void sauvegardeTempsPointsNbPommesMangeesLongueurSnake();
-
-        /*
-          Writting previous vectors into a txt file
-        */
-        void writingWholeHistory();
 };
 
 #endif
