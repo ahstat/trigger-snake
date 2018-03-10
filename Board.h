@@ -296,14 +296,11 @@ class Board : public QWidget
         ////
         // Saving whole game history and hi-score (for export)
         ////
-
-        //**..
-
-        // Update previous vectors by adding current state
+        // Update m_savedAllXxx vectors by adding current state
         void saveAllHistory();
-        // Writting previous vectors into a txt file
+        // Writing previous vectors into a txt file
         void writingAllHistory();
-        // Saving a crypted hi-score
+        // Writing a crypted hi-score
         void writingHiScore();
 
         /*********
@@ -314,15 +311,14 @@ class Board : public QWidget
         // Paint event
         void paintEvent(QPaintEvent *event);
 
-
-
         /******************
         * Graphical areas *
         ******************/
+        ////
+        // Generic areas
+        ////
+        // Whole board
         QRect m_board();
-        /*
-          Selecting areas
-        */
         // Generic rectangle of size m_cell * m_cell from (x, y)
         QRect m_rect(int x, int y);
 
@@ -341,37 +337,25 @@ class Board : public QWidget
         QRect m_rectTail(bool isToBeDiplayed);
 
         ////
-        // Area for the apples
+        // Area for the apple
         ////
         // Where is the current apple?
         QRect m_rectApple(bool isToBeDiplayed);
 
-        QRegion m_regionSnake();
-        QRegion m_regionApple();
-
+        ////
+        // Triangles for the layer with edges
+        ////
+        // (x, y) is the cell position, divided into 4 triangles
         QPolygon m_eastTriangle(int x, int y);
         QPolygon m_northTriangle(int x, int y);
         QPolygon m_westTriangle(int x, int y);
         QPolygon m_southTriangle(int x, int y);
 
-
-
-
         /***********
         * Painting *
         ***********/
-        /*
-          Painting main layer
-        */
+        // Paint game's area
         void paintShot(QPainter &painter);
-        // When m_isBoardLayerChanged==1, we redraw the whole board
-        void paintWholeBoard(QPainter &painter);
-
-
-        ////
-        // Board layers
-        ////
-
         // Painting snake's density layer
         void paintDensity(QPainter &painter);
         // Painting oriented edges crossed
@@ -380,8 +364,6 @@ class Board : public QWidget
         void paintNonOriented(QPainter &painter);
         // Painting apple's density layer
         void paintApple(QPainter &painter);
-
-
 };
 
 #endif

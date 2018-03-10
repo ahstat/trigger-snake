@@ -14,10 +14,15 @@
 class Helpers
 {
     public:
-        static int base(int nombre, int base);
-        static int lireHiScore();
-        static std::string convertDirection(int direction); //0=est ; 1=nord ; 2=ouest ; 3=sud ; -1=nonDéfini
-        static int lirePartieEnCours();
+        // Convert a number of a base into base 10
+        static int base(int number, int base);
+        // Read hi-score from a "hiscore.txt" file
+        static int readHiScore();
+        // Convert 0, 1, 2, 3 into "east", "north", "west", "south" (resp.)
+        static std::string convertDirection(int direction);
+        // Extract which is current play from "output.txt".
+        // it is game 0 if file doesn't exist
+        static int getCurrentPlayId();
 };
 
 #endif
