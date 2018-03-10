@@ -16,7 +16,7 @@ class Helpers
     public:
         static int base(int nombre, int base);
         static int lireHiScore();
-        static std::string convertirDirection(int direction); //0=est ; 1=nord ; 2=ouest ; 3=sud ; -1=nonDéfini
+        static std::string convertDirection(int direction); //0=est ; 1=nord ; 2=ouest ; 3=sud ; -1=nonDéfini
         static int lirePartieEnCours();
 };
 

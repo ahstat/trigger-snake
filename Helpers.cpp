@@ -66,7 +66,7 @@ int Helpers::lireHiScore()
     }
 }
 
-std::string Helpers::convertirDirection(int direction)
+std::string Helpers::convertDirection(int direction)
 {
     if(direction==0)
     {

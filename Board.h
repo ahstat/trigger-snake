@@ -84,6 +84,7 @@ class Board : public QWidget
         // When a new direction is set and m_repositionOnGrid == TRUE, the
         // snake will wait to be on a complete cell before moving
         bool m_repositionOnGrid;
+
         // current X position in pixels in [0, m_cellSize * m_nbSquaresX[
         int m_currentXPosition;
         // current Y position in pixels in [0, m_cellSize * m_nbSquaresY[
@@ -108,6 +109,7 @@ class Board : public QWidget
         // number of points of the current apple
         // set at 100 for a fresh apple, and slowly decrease to 1
         int m_pointsCurrentApple;
+
         // number of steps we let before apple begins to rot
         // set as distance between snake and apple when the apple appears
         int m_nbStepsBeforeDecreasingPoints;
@@ -144,9 +146,6 @@ class Board : public QWidget
         // "nonoriented" for density of snake in each non-oriented edge,
         // "apple" for density of apple in each cell.
         std::string m_currentBoard;
-
-        // Whether the board layer has changed
-        bool m_isBoardLayerChanged;
 
         ////
         // Saving partial states of the game
@@ -187,10 +186,10 @@ class Board : public QWidget
         // number of times the snake has crossed each cell from the north,
         // (resp. east, south, west),
         // cells are indexed line by line from 0 to m_nbSquaresX*m_nbSquaresY-1
-        std::vector<int> m_savedNorthEdges;
         std::vector<int> m_savedEastEdges;
-        std::vector<int> m_savedSouthEdges;
+        std::vector<int> m_savedNorthEdges;
         std::vector<int> m_savedWestEdges;
+        std::vector<int> m_savedSouthEdges;
 
         // number of times an apple has appeared in each cell of the grid,
         // cells are indexed line by line from 0 to m_nbSquaresX*m_nbSquaresY-1
@@ -229,65 +228,83 @@ class Board : public QWidget
         * Private methods *
         ******************/
         ////
-        // General behavior of the game
+        // General phases of the game
         ////
+        // Initialize attributes and board
         void newGame();
-        void begin(); //active le timer de déplacement
+        // Begin timer of the game
+        void begin();
+        // After each game
         void endOfGame();
+        // After a winning game
         void win();
-
         // For debugging, print rectangle position in console
         void display(bool isToBeDiplayed, std::string objName, QRect result) const;
-
-        void writingHiScore();
 
         ////
         // Snake behavior
         ////
+        // Main function testing whether snake has collided, eaten an apple etc.
         void motion();
-        void motionOneStep(); //avance d'un pixel dans le direction en cours (modulo le plateau)
-
-        bool collisionWithSnake(int newX, int newY);
+        // Moving one pixel on the board
+        void motionOneStep();
+        // Increase snake if necessary
+        void increaseSnake();
+        // Test for collision with snake itself
+        void testCollision();
 
         ////
         // Apple behavior
         ////
+        // Find a new empty position for apple (after being eaten by snake)
         void newApplePosition();
+        // Decreasing freshness of the apple
         void decreasingPoints();
 
         ////
         // Relations between apple and snake behaviors
         ////
-        int distanceAppleSnake(); //distance de Manhattan (modulo les bords)
-
-        void testCollision(); //vérification si on touche le snake après avoir avancé. Si c'est le cas, on lance ecrire()
+        // Manhattan distance on torus between apple and snake's head
+        int distanceAppleSnake();
+        // Does a potential apple in newX/newY would collide with snake?
+        bool collisionWithSnake(int newX, int newY);
+        // Does the snake collide with apple?
         bool collisionWithApple();
+        // Behavior when snake has eaten an apple
         void eatenApple();
-
-        void planAnIncreaseOfTheSnake(); //augmente la longueur de 1
-        void increaseSnake(); //test s'il faut augmenter maintenant le snake
+        // Plan to increase snake size after some steps
+        void planAnIncreaseOfTheSnake();
 
         ////
         // Saving partial states of the game
         ////
-        void savePositions(); //enregistre position en cours dans m_savedXPositions/Y
-        void savePositionsMod(); //idem modulo la taille du plateau (méthode à lancer après savePositions())
+        // Save current position and direction
+        void savePositions();
+        // Save current position modulo board's size
+        void savePositionsMod();
 
         ////
         // Saving additional states for layers
         ////
+        // Update density of cells
         void saveDensity();
+        // Update edges density
         void saveEdge();
+        // Update apple density
         void saveApple();
 
         ////
-        // Saving whole game history (for export)
+        // Saving whole game history and hi-score (for export)
         ////
+
+        //**..
+
         // Update previous vectors by adding current state
         void saveAllHistory();
-
         // Writting previous vectors into a txt file
         void writingAllHistory();
+        // Saving a crypted hi-score
+        void writingHiScore();
 
         /*********
         * Events *
@@ -332,10 +349,12 @@ class Board : public QWidget
         QRegion m_regionSnake();
         QRegion m_regionApple();
 
-        QPolygon m_northTriangle(int x, int y);
-        QPolygon m_southTriangle(int x, int y);
         QPolygon m_eastTriangle(int x, int y);
+        QPolygon m_northTriangle(int x, int y);
         QPolygon m_westTriangle(int x, int y);
+        QPolygon m_southTriangle(int x, int y);
+
+
 
 
         /***********
